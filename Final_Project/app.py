@@ -39,7 +39,6 @@ def transform_text(text):
 
     for i in text:
         y.append(ps.stem(i))
-
     return " ".join(y)
 
 

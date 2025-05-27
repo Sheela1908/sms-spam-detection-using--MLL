@@ -3,11 +3,9 @@ import pickle
 import string
 import nltk
 # Ensure necessary resources are downloaded
-#nltk.download('punkt')
-#nltk.download('stopwords')
+nltk.download('punkt_tab')
+nltk.download('stopwords')
 import os
-import nltk
-
 nltk_data_dir = os.path.join(os.path.expanduser('~'), 'nltk_data')
 os.makedirs(nltk_data_dir, exist_ok=True)
 nltk.download('punkt', download_dir=nltk_data_dir)

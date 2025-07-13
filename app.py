@@ -7,29 +7,24 @@ import os
 from nltk.stem.porter import PorterStemmer
 from nltk.corpus import stopwords
 
-# Ensure required nltk data is downloaded
-# Ensure necessary NLTK resources are available
-nltk_packages = ['punkt', 'stopwords']
-
-for pkg in nltk_packages:
-    try:
-        nltk.data.find(f'tokenizers/{pkg}' if pkg == 'punkt' else f'corpora/{pkg}')
-    except LookupError:
-        nltk.download(pkg)
-
+# --- Ensure required NLTK resource is available ---
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords')
 
 ps = PorterStemmer()
 
-# Preprocessing function (MUST match your training code)
+# --- Preprocessing function ---
 def transform_text(text):
     text = text.lower()
-    text = nltk.word_tokenize(text)
+    text = text.split()
 
     y = []
     for i in text:
         if re.match(r'https?://\S+|www\.\S+|\S+\.(com|net|org|co|uk|in|info|biz)', i):
             y.append('_URL_')
-        elif re.match(r'(£|\$|€)\d+|\d{3,}', i):
+        elif re.match(r'(£|\$|€)?\d{3,}', i):
             y.append('_NUM_')
         elif re.match(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', i):
             y.append('_EMAIL_')
@@ -51,7 +46,7 @@ def transform_text(text):
 
     return " ".join(y)
 
-# Load model and vectorizer
+# --- Load model and vectorizer ---
 model_path = 'model.pkl'
 vectorizer_path = 'vectorizer.pkl'
 
@@ -66,7 +61,7 @@ except Exception as e:
     st.error(f"❌ Error loading model files: {e}")
     st.stop()
 
-# Page config
+# --- Page config ---
 st.set_page_config(
     page_title="SMS Spam Classifier",
     page_icon="📩",
@@ -74,7 +69,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS for dark theme
+# --- Custom dark theme CSS ---
 st.markdown("""
     <style>
     .main {
@@ -100,7 +95,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# App UI
+# --- App UI ---
 st.title("📩 SMS Spam Classifier")
 st.markdown("Instantly check whether an SMS is Spam or Not")
 st.markdown("---")
@@ -114,8 +109,7 @@ if st.button('🔍 Classify'):
 
         if hasattr(model, 'predict_proba'):
             spam_proba = model.predict_proba(vector_input)[0][1]
-            threshold = 0.65  # Adjust as needed
-
+            threshold = 0.65  # Adjust threshold here
             if spam_proba >= threshold:
                 st.error("🚫 Spam")
             else:
@@ -127,4 +121,4 @@ if st.button('🔍 Classify'):
         st.warning("⚠️ Please enter a message to classify.")
 
 st.markdown("---")
-st.caption("🔐 This classifier uses machine learning and natural language processing to detect spam messages accurately.")
+st.caption("🔐 This classifier uses machine learning and NLP to detect SMS spam messages.")

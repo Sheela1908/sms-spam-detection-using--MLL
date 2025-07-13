@@ -109,7 +109,7 @@ if st.button('🔍 Classify'):
 
         if hasattr(model, 'predict_proba'):
             spam_proba = model.predict_proba(vector_input)[0][1]
-            threshold = 0.5  # Adjust threshold here
+            threshold = 0.6  # Adjust threshold here
             if spam_proba >= threshold:
                 st.error("🚫 Spam")
             else:

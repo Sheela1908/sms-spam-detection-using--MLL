@@ -8,15 +8,15 @@ from nltk.stem.porter import PorterStemmer
 from nltk.corpus import stopwords
 
 # Ensure required nltk data is downloaded
-try:
-    nltk.data.find('corpora/stopwords')
-except LookupError:
-    nltk.download('stopwords', quiet=True)
+# Ensure necessary NLTK resources are available
+nltk_packages = ['punkt', 'stopwords']
 
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt', quiet=True)
+for pkg in nltk_packages:
+    try:
+        nltk.data.find(f'tokenizers/{pkg}' if pkg == 'punkt' else f'corpora/{pkg}')
+    except LookupError:
+        nltk.download(pkg)
+
 
 ps = PorterStemmer()
 

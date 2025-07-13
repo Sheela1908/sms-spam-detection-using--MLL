@@ -2,31 +2,38 @@ import streamlit as st
 import pickle
 import string
 import nltk
-# Ensure necessary resources are downloaded
-nltk.download('punkt_tab')
-nltk.download('stopwords')
+import re
 import os
-nltk_data_dir = os.path.join(os.path.expanduser('~'), 'nltk_data')
-os.makedirs(nltk_data_dir, exist_ok=True)
-nltk.download('punkt', download_dir=nltk_data_dir)
-nltk.download('stopwords', download_dir=nltk_data_dir)
-nltk.data.path.append(nltk_data_dir)
-
-
-from nltk.corpus import stopwords
 from nltk.stem.porter import PorterStemmer
+from nltk.corpus import stopwords
+
+# Ensure required nltk data is downloaded
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords', quiet=True)
+
+try:
+    nltk.data.find('tokenizers/punkt')
+except LookupError:
+    nltk.download('punkt', quiet=True)
 
 ps = PorterStemmer()
 
-
-# Preprocess
+# Preprocessing function (MUST match your training code)
 def transform_text(text):
     text = text.lower()
     text = nltk.word_tokenize(text)
 
     y = []
     for i in text:
-        if i.isalnum():
+        if re.match(r'https?://\S+|www\.\S+|\S+\.(com|net|org|co|uk|in|info|biz)', i):
+            y.append('_URL_')
+        elif re.match(r'(£|\$|€)\d+|\d{3,}', i):
+            y.append('_NUM_')
+        elif re.match(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', i):
+            y.append('_EMAIL_')
+        elif i.isalnum():
             y.append(i)
 
     text = y[:]
@@ -44,49 +51,80 @@ def transform_text(text):
 
     return " ".join(y)
 
+# Load model and vectorizer
+model_path = 'model.pkl'
+vectorizer_path = 'vectorizer.pkl'
 
-# Load models
-tfidf = pickle.load(open('vectorizer.pkl', 'rb'))
-model = pickle.load(open('model.pkl', 'rb'))
+if not os.path.exists(model_path) or not os.path.exists(vectorizer_path):
+    st.error("❌ Model files 'model.pkl' or 'vectorizer.pkl' not found.")
+    st.stop()
 
-# UI
+try:
+    tfidf = pickle.load(open(vectorizer_path, 'rb'))
+    model = pickle.load(open(model_path, 'rb'))
+except Exception as e:
+    st.error(f"❌ Error loading model files: {e}")
+    st.stop()
+
+# Page config
+st.set_page_config(
+    page_title="SMS Spam Classifier",
+    page_icon="📩",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
+
+# Custom CSS for dark theme
+st.markdown("""
+    <style>
+    .main {
+        background-color: #1E1E1E;
+        color: #ffffff;
+        font-family: 'Segoe UI', sans-serif;
+    }
+    .stTextArea textarea {
+        background-color: #2D2D2D;
+        color: white;
+    }
+    .stButton > button {
+        background-color: #ff4b4b;
+        color: white;
+        border-radius: 10px;
+        padding: 0.5em 1em;
+        font-weight: bold;
+        transition: background-color 0.3s;
+    }
+    .stButton > button:hover {
+        background-color: #ff1c1c;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# App UI
 st.title("📩 SMS Spam Classifier")
+st.markdown("Instantly check whether an SMS is Spam or Not")
+st.markdown("---")
 
-input_sms = st.text_input("Enter the Message")
+input_sms = st.text_area("✉️ Enter your SMS message below:", height=150, placeholder="Type or paste your SMS message here...")
 
-if st.button('Predict'):
-    # Preprocess
-    transformed_sms = transform_text(input_sms)
+if st.button('🔍 Classify'):
+    if input_sms.strip():
+        transformed_sms = transform_text(input_sms)
+        vector_input = tfidf.transform([transformed_sms])
 
-    # Vectorize
-    vector_input = tfidf.transform([transformed_sms])
+        if hasattr(model, 'predict_proba'):
+            spam_proba = model.predict_proba(vector_input)[0][1]
+            threshold = 0.65  # Adjust as needed
 
-    # Predict
-    result = model.predict(vector_input)[0]
-
-    # Display
-    if result == 1:
-        st.header("🚫 Spam")
+            if spam_proba >= threshold:
+                st.error("🚫 Spam")
+            else:
+                st.success("✅ Not Spam")
+        else:
+            result = model.predict(vector_input)[0]
+            st.error("🚫 Spam" if result == 1 else "✅ Not Spam")
     else:
-        st.header("✅ Not Spam")
+        st.warning("⚠️ Please enter a message to classify.")
 
-# # Optional: CSV Upload
-# st.markdown("---")
-# st.subheader("📁 Batch Prediction (Optional)")
-# uploaded_file = st.file_uploader("Upload a CSV file with a `message` column", type=["csv"])
-#
-# if uploaded_file is not None:
-#     try:
-#         df = pd.read_csv(uploaded_file)
-#         if 'message' not in df.columns:
-#             st.error("❌ CSV must contain a `message` column.")
-#         else:
-#             df['transformed'] = df['message'].apply(transform_text)
-#             vectorized = tfidf.transform(df['transformed'])
-#             df['Prediction'] = model.predict(vectorized)
-#             df['Prediction'] = df['Prediction'].map({1: 'Spam', 0: 'Not Spam'})
-#             st.write(df[['message', 'Prediction']])
-#             csv = df.to_csv(index=False).encode('utf-8')
-#             st.download_button("📥 Download Results", data=csv, file_name="spam_predictions.csv", mime='text/csv')
-#     except Exception as e:
-#         st.error(f"Error processing file: {e}")
+st.markdown("---")
+st.caption("🔐 This classifier uses machine learning and natural language processing to detect spam messages accurately.")
